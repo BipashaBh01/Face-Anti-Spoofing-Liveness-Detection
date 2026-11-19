@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<!-- ==========================================================================
+     index.html — single-page liveness interface
+     ==========================================================================
+     A full-bleed upright camera fills the screen, with a circular record
+     control at the bottom centre. The whole interface occupies exactly the
+     viewport, with no scrolling.
+     ========================================================================== -->
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Liveness Detection</title>
+    <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+
+    <!-- The entire app is one stage: camera behind, controls on top. -->
+    <main id="stage">
+
+        <!-- ================================================================
+        Researcher setup screen (Screen 1). Shown first, before the
+        camera flow. The researcher enters the participant and session
+        details; "Start Session" hides this and reveals the normal flow.
+        ================================================================ -->
+        <div id="setup-screen">
+            
+            <div id="setup-error-banner" class="hidden"></div>
+
+            <h2>Session Setup</h2>
+            <div class="setup-sub">Researcher use — enter the participant and session details.</div>
+
+            <div class="setup-field">
+                <label for="su-code">PARTICIPANT CODE</label>
+                <input id="su-code" type="text" placeholder="e.g. P01" autocomplete="off">
+                <div class="setup-msg">Please enter a valid participant code (e.g. P01)</div>
+            </div>
+
+            <div class="setup-field">
+                <label for="su-condition">CONDITION</label>
+                <select id="su-condition">
+                    <option value="">Select condition…</option>
+                    <option>LIVE: Good lighting — No visual aid — All challenges correct</option>
+                    <option>LIVE: Good lighting — With visual aid — All challenges failed</option>
+                    <option>LIVE: Good lighting — No visual aid — All challenges failed</option>
+                    <option>LIVE: Dim lighting — No glasses — All challenges correct</option>
+                    <option>SPOOF: Display-photo (Passive + Active) </option>
+                    <option>SPOOF: Display-photo (Passive), self actions (identity swap)</option>
+                    <option>SPOOF: Screen replay (same still video Passive + Active)</option>
+                    <option>SPOOF: Screen replay (still video - Passive + pre-recorded video - Active)</option>
+                </select>
+                <div class="setup-msg">Please select an option</div>
+            </div>
+
+            <div class="setup-row">
+                <div class="setup-field">
+                    <label for="su-age">AGE GROUP</label>
+                    <select id="su-age">
+                        <option value="">Select…</option>
+                        <option>Under 18</option>
+                        <option>18–25</option>
+                        <option>26–35</option>
+                        <option>36–45</option>
+                        <option>46–55</option>
+                        <option>56–65</option>
+                        <option>65+</option>
+                    </select>
+                    <div class="setup-msg">Please select an option</div>
+                </div>
+                <div class="setup-field">
+                    <label for="su-gender">GENDER</label>
+                    <select id="su-gender">
+                        <option value="">Select…</option>
+                        <option>Male</option>
+                        <option>Female</option>
+                        <option>Prefer not to say</option>
+                    </select>
+                    <div class="setup-msg">Please select an option</div>
+                </div>
+            </div>
+
+            <div class="setup-field">
+                <label for="su-ethnicity">ETHNICITY</label>
+                <select id="su-ethnicity">
+                    <option value="">Select…</option>
+                    <option>Asian</option>
+                    <option>Black / African / Caribbean</option>
+                    <option>White</option>
+                    <option>Hispanic / Latino</option>
+                    <option>Middle Eastern / North African</option>
+                    <option>Indigenous / Native</option>
+                    <option>Pacific Islander</option>
+                    <option>Mixed / Multiple ethnic groups</option>
+                    <option>Other ethnic background</option>
+                    <option>Prefer not to say</option>
+                </select>
+                <div class="setup-msg">Please select an option</div>
+            </div>
+
+            <div class="setup-field">
+                <label for="su-aids">VISUAL AIDS (GLASSES / CONTACTS)</label>
+                <select id="su-aids">
+                    <option value="">Select…</option>
+                    <option>Yes</option>
+                    <option>No</option>
+                </select>
+                <div class="setup-msg">Please select an option</div>
+            </div>
+
+            <button id="start-session-btn">Start Session</button>
+        </div>
+
+
+        <!-- Live camera. Muted and playsinline so it autoplays without
+             sound and without going fullscreen on mobile. -->
+        <video id="camera" autoplay muted playsinline></video>
+
+        <!-- Frozen frame shown over the camera when recording pauses.
+         Hidden until then. -->
+        <canvas id="freeze" class="hidden"></canvas>
+
+        <!-- Everything below sits above the camera image. -->
+        <div id="overlay">
+            <header id="title-bar">
+                <h1>Liveness Detection</h1>
+            </header>
+
+            <!-- Instruction shown in the middle of the camera view during
+                 position checking, for example "Move a little right". -->
+            <div id="coach" class="hidden">
+                <p id="coach-text"></p>
+            </div>
+
+            <!-- Face guide oval: a dashed oval over the face area, shown during
+             setup and both recordings to help the user position their face. -->
+            <div id="face-oval" class="hidden"></div>
+
+            <!-- Shown before camera permission is granted. -->
+            <div id="permission" class="center-note">
+                <p id="permission-text">Starting camera…</p>
+            </div>
+
+            <!-- Message shown low on the screen, above the button area,
+                 after START is pressed. Hidden until then. -->
+            <div id="message" class="hidden">
+                <p id="message-text"></p>
+            </div>
+
+
+            <!-- Recording button with its timer ring. Hidden until the
+                 recording stage starts. -->
+            <div id="rec-area" class="hidden">
+ 
+                <!-- The circular timer is drawn with SVG so the ring can
+                    sweep smoothly like a clock hand. -->
+                <div id="rec-button">
+     
+                    <!-- SVG holds two rings: a faint track and the moving
+                        progress ring on top of it. viewBox is 100x100. -->
+                    <svg id="rec-ring" viewBox="0 0 100 100">
+     
+                    <!-- Faint background track ring. -->
+                    <circle id="rec-track"
+                        cx="50" cy="50" r="46"></circle>
+     
+                    <!-- Moving progress ring. Rotated so it starts at
+                        the top (12 o'clock) and sweeps clockwise. -->
+                    <circle id="rec-progress"
+                        cx="50" cy="50" r="46"
+                        transform="rotate(-90 50 50)"></circle>
+                    </svg>
+     
+                    <!-- The solid red dot in the centre, the REC light. -->
+                    <span id="rec-dot"></span>
+                </div>
+     
+                <!-- Countdown legend below the button, for example "20s". -->
+                <p id="rec-countdown">20s</p>
+            </div>
+
+            <!-- Pause screen, shown when the recording pauses on a
+                 violation. Hidden until then. -->
+            <div id="pause-screen" class="hidden">
+
+                <!-- Warning message. The reason word is dynamic; the rest
+                     is fixed. -->
+                <div id="pause-message">
+                    Warning: <b id="pause-reason"></b>. The recording was
+                    stopped. Click 'Start New' to record again.
+                </div>
+
+                <!-- The two action buttons. -->
+                <div id="pause-actions">
+                    <!-- Start New: white background, black text. -->
+                    <button id="startnew-btn">Start New</button>
+                </div>
+            </div>
+                      
+            <!-- Record control, centred at the bottom. -->
+            <div id="control-bar">
+                <!-- Record button. Shows START before the click. -->
+                <button id="record" aria-label="Start">
+                <!-- The word shown inside the ring before recording. -->
+                <span id="record-start">START</span>
+                <!-- The red fill shown after the click. Hidden at first. -->
+                <span id="record-dot"></span>
+                </button>
+            </div>
+
+            <!-- Bottom legend shown during position checking, in place of
+                 the Start Recording button. -->
+                 <div id="legend" class="hidden">Checking setup…</div>
+            
+            <!-- Shown in the centre after recording, through scoring and
+                 into the liveness intro. Hidden until recording ends. -->
+            <div id="after-record" class="hidden">
+
+                <!-- Fixed heading for this stage. -->
+                <div id="ar-title">Recording complete</div>
+
+                <!-- Changing line: "Checking video...", then the liveness
+                     countdown. -->
+                <div id="ar-sub"></div>
+
+                <!-- Second line for the intro sentence. -->
+                <div id="ar-sub2" class="hidden"></div>
+
+                <!-- Start Prompts button, shown after the countdown. -->
+                <button id="start-prompts-btn" class="hidden">Start Prompts</button>
+
+                <!-- Start New button, shown only on a scoring error. -->
+                <button id="ar-startnew-btn" class="hidden">Start New</button>
+            </div>
+
+            <!-- Top-middle legend shown during the setup check before the
+                 prompts. Hidden until then. -->
+            <div id="prompt-check-legend" class="hidden">Prompts Check</div>
+
+            <!-- The challenge prompt panel, shown after the prompt-setup
+                 hold completes. Holds the record button, the three prompts,
+                 the animations, and the instruction. Hidden until then. -->
+            <div id="prompt-panel" class="hidden">
+
+                <!-- Starts and finishes the challenge recording. -->
+                <button id="record-prompts-btn">Record Prompts</button>
+
+                <!-- The three prompts as one bold line. -->
+                <div id="prompt-text"></div>
+
+                <!-- The fixed instruction below. -->
+                <div id="prompt-instruction">
+                    Please click Record Prompts and perform the three actions
+                    as a single video (total time is only 15 seconds).
+                </div>
+            </div>
+
+            <!-- Final verdict screen: a green tick or a red cross with a
+                 message. Hidden until the verdict arrives. -->
+            <div id="verdict-screen" class="hidden">
+
+                <!-- The icon circle, coloured by the verdict. -->
+                <div id="verdict-icon"></div>
+
+                <!-- The verdict message. -->
+                <div id="verdict-text"></div>
+            </div>
+
+            <!-- Shown when a challenge attempt failed, before the next set
+                 of prompts. Generic wording — never says which action failed
+                 (that would leak information to an attacker). -->
+            <div id="failed-screen" class="hidden">
+
+                <!-- Orange identity-swap warning, shown only on a swap. -->
+                <div id="swap-warning" class="swap-warn hidden">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#F5A623"
+                         stroke-width="2.5" stroke-linecap="round"
+                         stroke-linejoin="round">
+                        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/>
+                        <line x1="12" y1="9" x2="12" y2="13"/>
+                        <line x1="12" y1="17" x2="12.01" y2="17"/>
+                    </svg>
+                    <span>Warning: Identity swapped!</span>
+                </div>
+
+                <!-- The failed message. -->
+                <div id="failed-text">
+                    Failed. Please record the prompts properly.
+                </div>
+
+                <!-- Button to move on to a fresh set of prompts. -->
+                <button id="try-again-btn">Try Again</button>
+
+                <!-- Shows how many challenge attempts remain. -->
+                <div id="attempts-legend" class="hidden"></div>
+            </div>
+
+        </div>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

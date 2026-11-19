@@ -1,0 +1,926 @@
+/* ==========================================================================
+   styles.css — appearance of the liveness interface
+   ==========================================================================
+   One upright camera fills the viewport. Controls are layered on top. The
+   page never scrolls: the stage is locked to the viewport height.
+
+   PALETTE
+     ground   #12161C   deep slate behind everything
+     accent   #3DD6C4   the single action colour, used on the record ring
+     record   #F0454B   the record dot, a familiar recording red
+     text     #EDF1F5   headings and labels
+   ========================================================================== */
+
+:root {
+    --ground: #12161C;
+    --accent: #3DD6C4;
+    --record: #F0454B;
+    --text: #EDF1F5;
+    --muted: #9AA6B4;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;                 /* no scrolling, ever */
+    background: var(--ground);
+    font-family: "Inter", "Segoe UI", -apple-system, BlinkMacSystemFont,
+                 "Helvetica Neue", Arial, sans-serif;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+/* ---- stage: fills the viewport, centres the phone-width column -------- */
+#stage {
+    position: relative;
+    width: 100%;
+    height: 100vh;
+    max-width: 440px;
+    margin: 0 auto;
+    background: #000;
+    overflow: hidden;
+}
+
+/* ---- camera: covers the stage in upright orientation ----------------- */
+#camera {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;                /* fill the upright frame, cropping */
+    background: #000;
+    /* Mirror, so movement on screen matches the subject's own movement. */
+    transform: scaleX(-1);
+}
+
+/* ---- overlay: holds everything drawn over the camera ----------------- */
+#overlay {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    pointer-events: none;             /* clicks pass through except where re-enabled */
+}
+
+/* ---- title ----------------------------------------------------------- */
+#title-bar {
+    padding: 20px 16px 0;
+    text-align: center;
+    background: linear-gradient(to bottom, rgba(0,0,0,0.55), rgba(0,0,0,0));
+}
+
+#title-bar h1 {
+    margin: 0;
+    color: var(--accent);
+    font-size: 25px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    -webkit-text-stroke: 1px #000;
+}
+
+/* ---- permission notice ----------------------------------------------- */
+.center-note {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.center-note p {
+    margin: 0;
+    padding: 10px 18px;
+    background: rgba(0,0,0,0.5);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 14px;
+}
+
+.center-note.hidden { display: none; }
+
+/* ---- record control -------------------------------------------------- */
+#control-bar {
+    padding-bottom: 34px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(to top, rgba(0,0,0,0.55), rgba(0,0,0,0));
+    pointer-events: auto;             /* the button is clickable */
+}
+
+/* The record button: a ring with START inside before the click. */
+#record {
+    width: 84px;                    /* button size */
+    height: 84px;                   /* keep it a circle */
+    border-radius: 50%;             /* round shape */
+    border: 4px solid var(--accent);/* cyan ring */
+    background: rgba(0, 0, 0, 0.30);/* faint dark centre */
+    display: flex;                  /* centre the inner content */
+    align-items: center;            /* centre vertically */
+    justify-content: center;        /* centre horizontally */
+    cursor: pointer;                /* show it is clickable */
+    padding: 0;                     /* no inner padding */
+    transition: transform 90ms ease;/* small press feedback */
+}
+ 
+/* Grow slightly on hover. */
+#record:hover { transform: scale(1.04); }
+ 
+/* Shrink slightly while pressed. */
+#record:active { transform: scale(0.96); }
+ 
+/* Clear keyboard focus outline. */
+#record:focus-visible {
+    outline: 3px solid var(--accent);
+    outline-offset: 4px;
+}
+ 
+/* The word START inside the ring. */
+#record-start {
+    color: var(--accent);           /* match the ring colour */
+    font-size: 15px;                /* readable inside the circle */
+    font-weight: 700;               /* bold */
+    letter-spacing: 0.08em;         /* spaced letters */
+}
+ 
+/* The red fill shown after the click. Hidden before the click. */
+#record-dot {
+    display: none;                  /* hidden until recording starts */
+    width: 100%;                    /* fill the whole button */
+    height: 100%;                   /* fill the whole button */
+    border-radius: 50%;             /* stay circular */
+    background: var(--record);      /* recording red */
+}
+ 
+/* When the button carries the "recording" class, swap the look. */
+ 
+/* Hide the START word once recording. */
+#record.recording #record-start { display: none; }
+ 
+/* Show the red fill once recording, out to the ring. */
+#record.recording #record-dot { display: block; }
+
+@media (prefers-reduced-motion: reduce) {
+    #record, #record-dot { transition: none; }
+}
+
+
+
+/* ---- middle instruction during position checking --------------------- */
+
+/* Centre the instruction over the camera view. */
+#coach {
+    position: absolute;            /* float over the camera */
+    inset: 0;                      /* fill the stage so flex can centre */
+    display: flex;                 /* use flex to centre the text */
+    align-items: center;           /* centre vertically */
+    justify-content: center;       /* centre horizontally */
+    pointer-events: none;          /* let clicks pass through */
+}
+
+/* The instruction pill itself. */
+#coach p {
+    margin: 0;                     /* remove default spacing */
+    padding: 12px 20px;            /* space inside the pill */
+    background: rgba(0, 0, 0, 0.6); /* dark translucent backing */
+    border-radius: 12px;           /* rounded pill shape */
+    color: #ffffff;                /* white text */
+    font-size: 16px;               /* readable size */
+    font-weight: 600;              /* clear weight */
+    text-align: center;            /* centre the words */
+    max-width: 80%;                /* keep it inside the frame */
+}
+
+/* Hidden state, toggled from the script. */
+#coach.hidden { display: none; }
+
+/* ---- bottom legend that replaces the button -------------------------- */
+
+/* Container for the "Checking setup..." legend. */
+#legend {
+    position: absolute;            /* sit at the bottom over the camera */
+    left: 50%;                     /* start at horizontal centre */
+    bottom: 34px;                  /* lift off the bottom edge */
+    transform: translateX(-50%);   /* true-centre horizontally */
+    z-index: 30;                   /* above the camera */
+    padding: 10px 18px;            /* space inside */
+    background: rgba(0, 0, 0, 0.55); /* dark translucent backing */
+    border-radius: 10px;           /* rounded corners */
+    color: #EDF1F5;                /* light text */
+    font-size: 13px;               /* legend size */
+    letter-spacing: 0.02em;        /* slight spacing */
+}
+
+/* Hidden state, toggled from the script. */
+#legend.hidden { display: none; }
+
+/* Hidden state for the record button area, toggled from the script. */
+#control-bar.hidden { display: none; }
+
+
+/* Message shown after START, low on the screen above the button area. */
+#message {
+    position: absolute;             /* float over the camera */
+    left: 50%;                      /* start at horizontal centre */
+    bottom: 150px;                  /* sit low, above where the button was */
+    transform: translateX(-50%);    /* true-centre horizontally */
+    z-index: 25;                    /* above the camera image */
+    width: 84%;                     /* keep inside the frame */
+    display: flex;                  /* centre the pill */
+    justify-content: center;        /* centre horizontally */
+    pointer-events: none;           /* let clicks pass through */
+}
+ 
+/* The message pill itself. */
+#message p {
+    margin: 0;                      /* remove default spacing */
+    padding: 12px 20px;             /* space inside */
+    background: rgba(0, 0, 0, 0.60); /* dark translucent backing */
+    border-radius: 12px;            /* rounded pill */
+    color: #ffffff;                 /* white text */
+    font-size: 17px;                /* clearly readable */
+    font-weight: 600;               /* clear weight */
+    text-align: center;             /* centre the words */
+}
+ 
+/* Hidden state, toggled from the script. */
+#message.hidden { display: none; }
+
+
+/* ---- recording area: button and countdown, centred at the bottom ----- */
+#rec-area {
+    position: absolute;            /* float over the camera */
+    left: 50%;                     /* start at horizontal centre */
+    bottom: 30px;                  /* sit near the bottom */
+    transform: translateX(-50%);   /* true-centre horizontally */
+    z-index: 30;                   /* above the camera image */
+    display: flex;                 /* stack button and countdown */
+    flex-direction: column;        /* button on top, legend below */
+    align-items: center;           /* centre them */
+    gap: 10px;                     /* space between button and legend */
+    pointer-events: none;          /* display only, not clickable here */
+}
+ 
+/* Hidden state, toggled from the script. */
+#rec-area.hidden { display: none; }
+ 
+/* ---- the round recording button ------------------------------------- */
+#rec-button {
+    position: relative;            /* let the ring and dot layer inside */
+    width: 84px;                   /* button size */
+    height: 84px;                  /* keep it a circle */
+}
+ 
+/* ---- the SVG holding the timer rings --------------------------------- */
+#rec-ring {
+    position: absolute;            /* sit over the button */
+    inset: 0;                      /* fill the button box */
+    width: 100%;                   /* match button width */
+    height: 100%;                  /* match button height */
+}
+ 
+/* Faint background track that the progress ring sweeps over. */
+#rec-track {
+    fill: none;                    /* no inside fill */
+    stroke: rgba(255,255,255,0.25);/* faint white ring */
+    stroke-width: 6;               /* ring thickness */
+}
+ 
+/* The moving progress ring that fills as time passes. */
+#rec-progress {
+    fill: none;                    /* no inside fill */
+    stroke: var(--accent);         /* cyan sweep colour */
+    stroke-width: 6;               /* ring thickness */
+    stroke-linecap: round;         /* rounded sweep end */
+ 
+    /* The ring is drawn as one long dash. The dash length equals the full
+       circumference, and the gap is moved to hide or show it. This is how
+       the sweep is animated from the script.
+       Circumference = 2 * pi * r = 2 * 3.1416 * 46 = about 289. */
+    stroke-dasharray: 289;         /* full circle length */
+    stroke-dashoffset: 289;        /* start fully hidden (no sweep yet) */
+    transition: stroke-dashoffset 0.1s linear; /* smooth small steps */
+}
+ 
+/* ---- the red REC dot in the centre ----------------------------------- */
+#rec-dot {
+    position: absolute;            /* centre inside the button */
+    top: 50%;                      /* vertical centre */
+    left: 50%;                     /* horizontal centre */
+    transform: translate(-50%, -50%); /* true-centre the dot */
+    width: 46px;                   /* dot size */
+    height: 46px;                  /* keep it round */
+    border-radius: 50%;            /* round shape */
+    background: var(--record);     /* recording red */
+}
+ 
+/* ---- countdown legend below the button ------------------------------- */
+#rec-countdown {
+    margin: 0;                     /* remove default spacing */
+    color: #ffffff;                /* white text */
+    font-size: 15px;               /* readable size */
+    font-weight: 600;              /* clear weight */
+    letter-spacing: 0.02em;        /* slight spacing */
+    text-shadow: 0 1px 4px rgba(0,0,0,0.6); /* keep legible on camera */
+}
+
+/* Frozen frame overlay: sits exactly over the camera, same size. */
+#freeze {
+    position: absolute;            /* lie over the camera */
+    inset: 0;                      /* fill the same area */
+    width: 100%;                   /* match camera width */
+    height: 100%;                  /* match camera height */
+    object-fit: cover;             /* fill like the camera does */
+    z-index: 5;                    /* above the camera, below messages */
+    transform: scaleX(-1);         /* mirror to match the camera view */
+}
+
+/* Hidden state. */
+#freeze.hidden { display: none; }
+
+
+/* ---- pause screen shown when recording pauses on a violation ---------- */
+#pause-screen {
+    position: absolute;            /* cover the camera area */
+    inset: 0;                      /* fill the stage */
+    z-index: 40;                   /* above the frozen video and rec area */
+    pointer-events: none;          /* only the buttons take clicks */
+}
+
+/* Hidden state, toggled from the script. */
+#pause-screen.hidden { display: none; }
+
+/* The warning message near the upper middle. */
+#pause-message {
+    position: absolute;            /* place over the camera */
+    left: 50%;                     /* centre horizontally */
+    top: 38%;                      /* sit in the upper middle */
+    transform: translate(-50%, -50%); /* true-centre */
+    width: 80%;                    /* keep inside the frame */
+    background: rgba(0, 0, 0, 0.72); /* dark backing for readability */
+    border-radius: 12px;           /* rounded box */
+    padding: 14px 18px;            /* space inside */
+    color: #ffffff;                /* white text */
+    font-size: 14px;               /* readable size */
+    font-weight: 500;              /* medium weight */
+    text-align: center;            /* centre the words */
+    line-height: 1.4;              /* comfortable spacing */
+}
+
+/* The dynamic reason word, in the record red. */
+#pause-message b {
+    color: var(--record);          /* red to stand out */
+}
+
+/* The two buttons, stacked and centred low on the screen. */
+#pause-actions {
+    position: absolute;            /* place over the camera */
+    left: 50%;                     /* centre horizontally */
+    bottom: 120px;                 /* sit above the frozen record area */
+    transform: translateX(-50%);   /* true-centre */
+    display: flex;                 /* stack the buttons */
+    flex-direction: column;        /* Resume on top, Start New below */
+    align-items: center;           /* centre them */
+    gap: 14px;                     /* space between the buttons */
+    pointer-events: auto;          /* the buttons are clickable */
+}
+
+/* Start New: white background with black text. */
+#startnew-btn {
+    background: #ffffff;           /* white fill */
+    color: #000000;                /* black text */
+    border: none;                  /* no border */
+    border-radius: 22px;           /* rounded pill */
+    padding: 11px 26px;            /* space inside */
+    font-size: 15px;               /* readable size */
+    font-weight: 700;              /* bold */
+    cursor: pointer;               /* show it is clickable */
+    min-width: 130px;              /* match Resume width */
+}
+
+/* When paused, grey out and freeze the record area. */
+#rec-area.paused {
+    opacity: 0.4;                  /* dim to show it is inactive */
+}
+
+/* Centre panel shown after recording, through scoring and the intro. */
+#after-record {
+    position: absolute;                    /* float over the camera */
+    left: 50%;                             /* start at horizontal centre */
+    top: 52%;                              /* sit around the middle */
+    transform: translate(-50%, -50%);      /* true-centre both ways */
+    z-index: 46;                           /* above other overlays */
+    width: 82%;                            /* keep inside the frame */
+    display: flex;                         /* stack the lines */
+    flex-direction: column;                /* vertical stack */
+    align-items: center;                   /* centre them across */
+    text-align: center;                    /* centre the words */
+    pointer-events: none;                  /* only the buttons take clicks */
+}
+
+/* Hidden state, toggled from the script. */
+#after-record.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* The fixed heading of this stage. */
+#ar-title {
+    color: #ffffff;                        /* white text */
+    font-size: 22px;                       /* large heading */
+    font-weight: 700;                      /* bold */
+    margin-bottom: 12px;                   /* space below */
+    text-shadow: 0 1px 6px rgba(0, 0, 0, 0.6); /* keep legible on camera */
+}
+
+/* The changing sub line: checking, then the countdown. */
+#ar-sub {
+    color: #edf1f5;                        /* light text */
+    font-size: 16px;                       /* readable size */
+    font-weight: 600;                      /* clear weight */
+    background: rgba(0, 0, 0, 0.5);        /* dark backing for contrast */
+    border-radius: 10px;                   /* rounded box */
+    padding: 10px 14px;                    /* space inside */
+    margin-bottom: 8px;                    /* space below */
+}
+
+/* The intro sentence line. */
+#ar-sub2 {
+    color: #edf1f5;                        /* light text */
+    font-size: 15px;                       /* readable size */
+    font-weight: 500;                      /* medium weight */
+    background: rgba(0, 0, 0, 0.5);        /* dark backing for contrast */
+    border-radius: 10px;                   /* rounded box */
+    padding: 10px 14px;                    /* space inside */
+    margin-bottom: 8px;                    /* space below */
+    line-height: 1.35;                     /* comfortable line spacing */
+}
+
+/* Hidden state for the intro sentence. */
+#ar-sub2.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* Start Prompts button: cyan pill with black text. */
+#start-prompts-btn {
+    background: var(--accent);             /* cyan fill */
+    color: #000000;                        /* black text */
+    border: none;                          /* no border */
+    border-radius: 22px;                   /* rounded pill */
+    padding: 11px 26px;                    /* space inside */
+    font-size: 15px;                       /* readable size */
+    font-weight: 700;                      /* bold */
+    margin-top: 6px;                       /* space above */
+    cursor: pointer;                       /* show it is clickable */
+    pointer-events: auto;                  /* enable clicks */
+}
+
+/* Hidden state for the Start Prompts button. */
+#start-prompts-btn.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* Start New button on error: white pill with black text. */
+#ar-startnew-btn {
+    background: #ffffff;                   /* white fill */
+    color: #000000;                        /* black text */
+    border: none;                          /* no border */
+    border-radius: 22px;                   /* rounded pill */
+    padding: 11px 26px;                    /* space inside */
+    font-size: 15px;                       /* readable size */
+    font-weight: 700;                      /* bold */
+    margin-top: 6px;                       /* space above */
+    cursor: pointer;                       /* show it is clickable */
+    pointer-events: auto;                  /* enable clicks */
+}
+
+/* Hidden state for the Start New button. */
+#ar-startnew-btn.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* Show a small spinning clock after the "Please wait" text. */
+#ar-sub.with-spinner::after {
+    content: "";                           /* empty spinner element */
+    display: inline-block;                 /* sit next to the text */
+    width: 16px;                           /* spinner size */
+    height: 16px;                          /* keep it round */
+    margin-left: 10px;                     /* space from the text */
+    vertical-align: middle;                /* align with the text */
+    border: 2px solid rgba(255,255,255,0.35); /* faint ring */
+    border-top-color: #ffffff;             /* bright arc that spins */
+    border-radius: 50%;                    /* round shape */
+    animation: ar-spin 0.8s linear infinite; /* spin forever */
+}
+
+/* The spin animation. */
+@keyframes ar-spin {
+    to { transform: rotate(360deg); }      /* one full turn */
+}
+
+/* Hidden state for the heading, ID-specific so it overrides #ar-title. */
+#ar-title.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* Hidden state for the sub line, ID-specific so it overrides #ar-sub. */
+#ar-sub.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* Top-middle legend shown during the pre-prompt setup check. */
+#prompt-check-legend {
+    position: absolute;                    /* float over the camera */
+    left: 50%;                             /* centre horizontally */
+    top: 70px;                             /* sit near the top */
+    transform: translateX(-50%);           /* true-centre horizontally */
+    z-index: 30;                           /* above the camera */
+    background: rgba(0, 0, 0, 0.6);        /* dark backing */
+    color: #ffffff;                        /* white text */
+    font-size: 15px;                       /* readable size */
+    font-weight: 700;                      /* bold */
+    letter-spacing: 0.04em;                /* slight spacing */
+    padding: 7px 16px;                     /* space inside */
+    border-radius: 20px;                   /* rounded pill */
+}
+
+/* Hidden state. */
+#prompt-check-legend.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* The challenge prompt panel, sitting bottom-middle and slightly raised. */
+#prompt-panel {
+    position: absolute;                    /* float over the camera */
+    left: 50%;                             /* centre horizontally */
+    bottom: 70px;                          /* sit a little above the bottom */
+    transform: translateX(-50%);           /* true-centre horizontally */
+    z-index: 50;                           /* above other overlays */
+    width: 88%;                            /* keep inside the frame */
+    display: flex;                         /* stack the parts */
+    flex-direction: column;                /* vertical stack */
+    align-items: center;                   /* centre them */
+    text-align: center;                    /* centre the words */
+    pointer-events: auto;                  /* the panel takes clicks */
+}
+
+/* Hidden state. */
+#prompt-panel.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* The record/finish button on top. */
+#record-prompts-btn {
+    background: #F5A623;                 /* light orange fill */
+    color: #000000;                      /* black text for contrast */
+    border: none;                          /* no border */
+    border-radius: 22px;                   /* rounded pill */
+    padding: 11px 30px;                    /* space inside */
+    font-size: 15px;                       /* readable size */
+    font-weight: 700;                      /* bold */
+    cursor: pointer;                       /* clickable */
+    margin-bottom: 12px;                   /* space below */
+}
+
+/* The three prompts as one bold, larger line. */
+#prompt-text {
+    color: #ffffff;                        /* white text */
+    font-size: 19px;                       /* larger than normal */
+    font-weight: 700;                      /* bold */
+    background: rgba(0, 0, 0, 0.45);       /* dark backing */
+    border-radius: 10px;                   /* rounded box */
+    padding: 9px 14px;                     /* space inside */
+    margin-bottom: 14px;                   /* space below */
+    line-height: 1.3;                      /* comfortable spacing */
+}
+
+
+/* The instruction text at the bottom of the panel. */
+#prompt-instruction {
+    color: #dde3ea;                        /* light text */
+    font-size: 12.5px;                     /* small print */
+    font-weight: 500;                      /* medium weight */
+    background: rgba(0, 0, 0, 0.4);        /* dark backing */
+    border-radius: 8px;                    /* rounded box */
+    padding: 8px 12px;                     /* space inside */
+    line-height: 1.35;                     /* comfortable spacing */
+}
+
+
+/* The record button while recording: white fill, orange text. */
+#record-prompts-btn.recording {
+    background: #ffffff;                    /* white fill */
+    color: #F5A623;                         /* orange text */
+}
+
+/* The final verdict screen, centred over the camera. */
+#verdict-screen {
+    position: absolute;                    /* float over the camera */
+    inset: 0;                              /* fill the stage */
+    z-index: 60;                           /* above everything else */
+    display: flex;                         /* centre the contents */
+    flex-direction: column;                /* icon above the text */
+    align-items: center;                   /* centre across */
+    justify-content: center;               /* centre down */
+    background: rgba(18, 22, 28, 0.75);    /* dim the camera behind */
+}
+
+/* Hidden state. */
+#verdict-screen.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* The icon circle. */
+#verdict-icon {
+    width: 120px;                          /* circle size */
+    height: 120px;                         /* keep it round */
+    border-radius: 50%;                    /* round shape */
+    display: flex;                         /* centre the mark */
+    align-items: center;                   /* centre vertically */
+    justify-content: center;               /* centre horizontally */
+    margin-bottom: 20px;                   /* space below */
+}
+
+/* Green circle for a pass. */
+#verdict-icon.pass {
+    background: #2AA55A;                    /* green */
+}
+
+/* Red circle for a fail. */
+#verdict-icon.fail {
+    background: #C83237;                    /* red */
+}
+
+/* Orange circle for a challenge/verification failure (warning, not spoof). */
+#verdict-icon.warn {
+    background: #F5A623;                    /* orange */
+}
+
+/* The tick or cross mark inside the circle. */
+#verdict-icon svg {
+    width: 64px;                           /* mark size */
+    height: 64px;                          /* keep square */
+}
+
+/* The verdict message. */
+#verdict-text {
+    color: #ffffff;                        /* white text */
+    font-size: 22px;                       /* large, clear */
+    font-weight: 700;                      /* bold */
+    text-align: center;                    /* centre the words */
+    padding: 0 20px;                       /* keep off the edges */
+}
+
+/* The failed-attempt screen, centred over the camera. */
+#failed-screen {
+    position: absolute;                    /* float over the camera */
+    inset: 0;                              /* fill the stage */
+    z-index: 58;                           /* above the panels */
+    display: flex;                         /* centre the contents */
+    flex-direction: column;                /* text above the button */
+    align-items: center;                   /* centre across */
+    justify-content: center;               /* centre down */
+    background: rgba(18, 22, 28, 0.8);     /* dim the camera behind */
+    pointer-events: auto;                  /* the screen takes clicks */
+}
+
+/* Hidden state. */
+#failed-screen.hidden {
+    display: none;                         /* remove from view */
+}
+
+/* The failed message text. */
+#failed-text {
+    color: #ffffff;                        /* white text */
+    font-size: 19px;                       /* clear size */
+    font-weight: 700;                      /* bold */
+    text-align: center;                    /* centre the words */
+    padding: 0 30px;                       /* keep off the edges */
+    margin-bottom: 22px;                   /* space below */
+    line-height: 1.4;                      /* comfortable spacing */
+}
+
+/* The Try Again button. */
+#try-again-btn {
+    background: #F5A623;                    /* light orange */
+    color: #000000;                        /* black text */
+    border: none;                          /* no border */
+    border-radius: 22px;                   /* rounded pill */
+    padding: 12px 34px;                    /* space inside */
+    font-size: 16px;                       /* readable */
+    font-weight: 700;                      /* bold */
+    cursor: pointer;                       /* clickable */
+    pointer-events: auto;                  /* takes clicks */
+    position: relative;                    /* sit above the backdrop */
+    z-index: 1;                            /* above the dim layer */
+}
+
+/* The face guide oval, centred over the camera. Sized to the middle of the
+   accepted position zone, so filling it roughly means the face is at the
+   right distance and centred. Dashed white while checking; solid green when
+   the position is judged correct. */
+   #face-oval {
+    position: absolute;                          /* float over the camera */
+    top: 46%;                                    /* lowered into the face area */
+    left: 50%;                                   /* centre horizontally */
+    transform: translate(-50%, -50%);            /* centre the oval */
+    width: 70%;                                  /* wider, so ears fit inside */
+    aspect-ratio: 5 / 7;                         /* elongated, less circular */
+    border: 3px dashed rgba(255, 255, 255, 0.85);/* dashed white, checking */
+    border-radius: 50%;                          /* full ellipse */
+    box-sizing: border-box;                      /* border inside the size */
+    pointer-events: none;                        /* never blocks clicks */
+    z-index: 15;                                 /* below the text pills */
+    transition: border-color 0.2s ease;          /* smooth colour change */
+}
+
+/* Correct-position state: solid green. */
+#face-oval.ok {
+    border: 4px solid #2ECC71;                   /* solid green outline */
+}
+
+/* Hidden state. */
+#face-oval.hidden {
+    display: none;                               /* removed from view */
+}
+
+/* ====================================================================
+   Researcher setup screen (Screen 1)
+   ==================================================================== */
+
+/* The setup panel, centred over the stage, shown before the camera flow. */
+#setup-screen {
+    position: absolute;                 /* sit over the stage */
+    inset: 0;                           /* fill it */
+    z-index: 60;                        /* above the camera and overlays */
+    display: flex;                      /* centre the form */
+    flex-direction: column;
+    justify-content: center;
+    align-items: stretch;
+    gap: 0;
+    background: #12161C;                /* solid dark backdrop */
+    padding: 26px 24px;
+    overflow-y: auto;                   /* scroll if the screen is short */
+}
+
+/* The heading. */
+#setup-screen h2 {
+    margin: 0 0 4px;
+    font-size: 22px;
+    font-weight: 700;
+    color: #e8eef2;
+}
+
+/* The small grey subtitle under the heading. */
+.setup-sub {
+    color: #8a97a3;
+    font-size: 13px;
+    margin-bottom: 22px;
+}
+
+/* One labelled field block. */
+.setup-field {
+    margin-bottom: 15px;
+}
+
+/* The small uppercase field label. */
+.setup-field label {
+    display: block;
+    font-size: 12.5px;
+    font-weight: 600;
+    color: #8a97a3;
+    margin-bottom: 6px;
+    letter-spacing: 0.3px;
+}
+
+/* The text input and dropdowns. */
+.setup-field input,
+.setup-field select {
+    width: 100%;
+    background: #252d38;
+    border: 1px solid #33404d;
+    border-radius: 9px;
+    padding: 11px 12px;
+    color: #e8eef2;
+    font-size: 14px;
+    outline: none;
+}
+
+/* Highlight the active field. */
+.setup-field input:focus,
+.setup-field select:focus {
+    border-color: #3DD6C4;
+}
+
+/* Two fields side by side (age + gender). */
+.setup-row {
+    display: flex;
+    gap: 12px;
+}
+.setup-row .setup-field {
+    flex: 1;
+}
+
+/* The Start Session button. */
+#start-session-btn {
+    width: 100%;
+    margin-top: 10px;
+    background: #028090;
+    color: #fff;
+    border: none;
+    border-radius: 24px;
+    padding: 13px;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    letter-spacing: 0.3px;
+}
+#start-session-btn:hover {
+    background: #03a0b3;
+}
+
+/* Hidden state, to remove it once the session starts. */
+#setup-screen.hidden {
+    display: none;
+}
+
+/* ---- setup screen validation states ---- */
+
+/* The dynamic error banner above the heading. Hidden until there are errors. */
+#setup-error-banner {
+    color: #FF6B7A;
+    font-size: 13px;
+    font-weight: 600;
+    margin-bottom: 14px;
+    background: rgba(255, 107, 122, 0.10);
+    border: 1px solid rgba(255, 107, 122, 0.35);
+    border-radius: 8px;
+    padding: 9px 11px;
+}
+#setup-error-banner.hidden {
+    display: none;
+}
+
+/* A field in error: red border only. The background stays the original dark
+colour so the dropdown list does not turn white/pink when opened. */
+.setup-field.bad input,
+.setup-field.bad select {
+    border-color: #FF6B7A;
+    background: #252d38;   /* keep the original dark field colour */
+}
+
+/* Keep the dropdown option list dark in every state. */
+.setup-field select option {
+    background: #252d38;
+    color: #e8eef2;
+}
+
+/* The per-field red message under the field. Hidden unless the field is bad. */
+.setup-field .setup-msg {
+    color: #FF6B7A;
+    font-size: 11.5px;
+    margin-top: 5px;
+    display: none;
+}
+.setup-field.bad .setup-msg {
+    display: block;
+}
+
+/* ---- identity-swap warning + attempts legend ---- */
+
+/* Orange warning banner shown on the failed screen for an identity swap. */
+.swap-warn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: rgba(245, 166, 35, 0.12);
+    border: 1px solid rgba(245, 166, 35, 0.5);
+    color: #F5A623;
+    border-radius: 20px;
+    padding: 7px 16px;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 18px;
+}
+.swap-warn svg {
+    width: 18px;
+    height: 18px;
+}
+
+/* Make sure the hidden class always wins over .swap-warn's display. */
+#swap-warning.hidden {
+    display: none;
+}
+
+/* The "N / 3 attempts remaining" legend under the Try Again button. */
+#attempts-legend {
+    margin-top: 16px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #8a97a3;
+}
